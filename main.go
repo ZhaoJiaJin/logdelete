@@ -21,6 +21,7 @@ type LogCfg struct{
 var(
 	NoFileSysErr = errors.New("can not get file sys info")
 	TypeCvtErr = errors.New("type convert error")
+	NotDirErr = errors.New("path is not Dir")
 
 	cfgfile string
 	cfgmtime time.Time
@@ -52,6 +53,28 @@ func leadwith(s1,s2 string)bool{
 	return s1[:len(s2)] == s2
 }
 
+func isDir(path string)error{
+	info,err := os.Stat(path)
+	if err != nil{
+		return err
+	}
+	if ! info.IsDir(){
+		return NotDirErr
+	}
+	return nil
+}
+
+
+func isExist(list []string,rec string)bool{
+	for _, v := range list{
+		if v == rec{
+			return true
+		}
+	}
+	return false
+}
+
+
 func buildcfgmap(cfgstr string,mountpts []string){
 	cfg.Lock()
 	defer cfg.Unlock()
@@ -62,6 +85,12 @@ func buildcfgmap(cfgstr string,mountpts []string){
 		}
 		if logpath[0] != '/'{
 			log.Println("[ERROR]路径必须是绝对路径:",logpath)
+			continue
+		}
+		err := isDir(logpath)
+		if err != nil{
+			log.Println("[ERROR]:",logpath,err)
+			continue
 		}
 		//build map
 		for _,mp := range mountpts{
@@ -70,8 +99,10 @@ func buildcfgmap(cfgstr string,mountpts []string){
 				if !present{
 					cfg.logmap[mp] = make([]string,0)
 				}
-				cfg.logmap[mp] = append(cfg.logmap[mp],logpath)
-				log.Println("[add]add",logpath,"to mount point",mp)
+				if ! isExist(cfg.logmap[mp],logpath){
+					cfg.logmap[mp] = append(cfg.logmap[mp],logpath)
+					log.Println("[add]add",logpath,"to mount point",mp)
+				}
 				break
 			}
 		}
