@@ -23,6 +23,7 @@ var(
 	TypeCvtErr = errors.New("type convert error")
 	NotDirErr = errors.New("path is not Dir")
 
+	debug bool
 	cfgfile string
 	cfgmtime time.Time
 	cfg LogCfg
@@ -165,14 +166,48 @@ func getmountpoint()([]string,error){
 	return ans,nil
 }
 
+func dellog(disk string,logpaths []string){
+	log.Println("[info]clear for",disk)
+}
+
+func diskperc(disk string)uint64{
+	var stat syscall.Statfs_t
+	err := syscall.Statfs(disk, &stat)
+	if err != nil{
+		log.Panic(err)
+	}
+	return stat.Bfree * 100 /  uint64(stat.Blocks)
+}
+
+func checkroutine(){
+	for{
+		cfg.RLock()
+		for disk,logpaths := range cfg.logmap{
+			perc := diskperc(disk)
+			if perc < 6{//free percentage
+				log.Println("[info]disk free space for",disk,perc,", begin delete")
+				dellog(disk,logpaths)
+			}
+		}
+		cfg.RUnlock()
+		time.Sleep(time.Second * 5)
+	}
+}
+
+
 func main(){
 	flag.StringVar(&cfgfile,"c","config","config file")
+	flag.BoolVar(&debug,"d",false,"debug mode")
 	flag.Parse()
 	log.Println("using config file:",cfgfile)
+	if debug{
+		log.Println("[info]enable debug mode")
+	}
 	cfg.logmap = make(map[string][]string)
 	err := loadcfg()
 	if err != nil{
 		log.Panic(err)
 	}
-	reloadcfg()
+	go reloadcfg()
+	checkroutine()
 }
