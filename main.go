@@ -23,6 +23,10 @@ var(
 	TypeCvtErr = errors.New("type convert error")
 	NotDirErr = errors.New("path is not Dir")
 
+	reloadcfginterval = 1 * time.Second
+	checkinterval = 5 * time.Second
+	freeperc uint64 = 80
+
 	debug bool
 	cfgfile string
 	cfgmtime time.Time
@@ -135,7 +139,7 @@ func loadcfg()error{
 
 func reloadcfg(){
 	for{
-		time.Sleep(time.Second * 1)
+		time.Sleep(reloadcfginterval)
 		err := loadcfg()
 		if err != nil{
 			log.Panic(err)
@@ -184,13 +188,13 @@ func checkroutine(){
 		cfg.RLock()
 		for disk,logpaths := range cfg.logmap{
 			perc := diskperc(disk)
-			if perc < 6{//free percentage
+			if perc < freeperc{//free percentage
 				log.Println("[info]disk free space for",disk,perc,", begin delete")
 				dellog(disk,logpaths)
 			}
 		}
 		cfg.RUnlock()
-		time.Sleep(time.Second * 5)
+		time.Sleep(checkinterval)
 	}
 }
 
