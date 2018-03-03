@@ -243,7 +243,6 @@ func getopenfile()(map[string][]string){
     //get process list
     filepath.Walk(procdir,func(path string, info os.FileInfo, err error) error{
         if err != nil{
-            //better panic, in case of deleting wrong file
             log.Println("[ERROR]walk file error",path,err)
             return nil
         }
