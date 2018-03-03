@@ -179,7 +179,7 @@ func getmountpoint()([]string,error){
 	return ans,nil
 }
 
-func canDelete(info os.FileInfo)bool{
+func canDelete(logpath string,info os.FileInfo)bool{
     //modify time older then 12h
     if time.Now().Sub(getModTime(info)) < oldfile{
         return false
@@ -215,7 +215,7 @@ func dellog(disk string,logpaths []string){
             if info.IsDir(){
                 return filepath.SkipDir
             }
-            if canDelete(info){
+            if canDelete(logpath,info){
                 loglist = append(loglist,MyFile{path,getModTime(info)})
             }
             return nil
@@ -244,8 +244,8 @@ func getopenfile()(map[string][]string){
     filepath.Walk(procdir,func(path string, info os.FileInfo, err error) error{
         if err != nil{
             //better panic, in case of deleting wrong file
-            log.Panic("[ERROR]walk file error",path,err)
-            return err
+            log.Println("[ERROR]walk file error",path,err)
+            return nil
         }
         if path == procdir{
             return nil
@@ -261,16 +261,67 @@ func getopenfile()(map[string][]string){
         return nil
     })
     //build open file map
-    log.Println(proclist)
-    return nil
+    openmap := make(map[string][]string)//logpath:[file1,file2]
+    for _,fdpath := range proclist{
+        filepath.Walk(fdpath,func(path string, info os.FileInfo, err error) error{
+            if err != nil{
+                log.Println("[ERROR]walk file error",path,err)
+                return nil
+            }
+            if fdpath == path{
+                return nil
+            }
+            if info.IsDir(){
+                return filepath.SkipDir
+            }
+            islink, err := isSymlink(path)
+            if err != nil{
+                log.Println("[ERROR]walk file error",path,err)
+                return nil
+            }
+            if islink{
+                realfile,err := os.Readlink(path)
+                if err != nil{
+                    log.Println("[ERROR]walk file error",path,err)
+                    return nil
+                }
+                for _,logpaths := range cfg.logmap{
+                    find := false
+                    for _,logpath := range logpaths{
+                        if leadwith(realfile,logpath){
+                            find = true
+                            _,present := openmap[logpath]
+                            if !present{
+                                openmap[logpath] = make([]string,0)
+                            }
+                            openmap[logpath] = append(openmap[logpath],realfile)
+                        }
+                    }
+                    if find{
+                        break
+                    }
+                }
+            }
+            return nil
+        })
+    }
+    return openmap
 }
 
+func isSymlink(name string)(bool,error){
+    info,err := os.Lstat(name)
+    if err != nil{
+        return false,err
+    }
+    return info.Mode() & os.ModeSymlink != 0,nil
+}
 
 func checkroutine(){
 	for{
 		cfg.RLock()
         //get open file first
-        _ = getopenfile()
+        openfiles := getopenfile()
+        log.Println(openfiles)
         //then delete file
 		for disk,logpaths := range cfg.logmap{
 			perc := diskperc(disk)
