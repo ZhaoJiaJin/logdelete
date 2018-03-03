@@ -10,6 +10,7 @@ import(
 	"sync"
 	"io/ioutil"
 	"strings"
+    "path/filepath"
 )
 
 type LogCfg struct{
@@ -172,6 +173,22 @@ func getmountpoint()([]string,error){
 
 func dellog(disk string,logpaths []string){
 	log.Println("[info]clear for",disk)
+    for _,logpath := range logpaths{
+        filepath.Walk(logpath,func(path string, info os.FileInfo, err error) error{
+            if err == nil{
+                if logpath == path{
+                    return nil
+                }
+                if info.IsDir(){
+                    return filepath.SkipDir
+                }
+                log.Println(path,info.Name(),info.IsDir(),"!!!")
+            }else{
+                log.Println("[ERROR]walk file error",path,err)
+            }
+            return nil
+        })
+    }
 }
 
 func diskperc(disk string)uint64{
@@ -189,7 +206,7 @@ func checkroutine(){
 		for disk,logpaths := range cfg.logmap{
 			perc := diskperc(disk)
 			if perc < freeperc{//free percentage
-				log.Println("[info]disk free space for",disk,perc,", begin delete")
+				log.Println("[info]disk free space ",disk,perc,"%, begin delete")
 				dellog(disk,logpaths)
 			}
 		}
