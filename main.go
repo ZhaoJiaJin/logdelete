@@ -32,8 +32,8 @@ var (
 	TypeCvtErr   = errors.New("type convert error")
 	NotDirErr    = errors.New("path is not Dir")
 
-	reloadcfginterval        = 1 * time.Second
-	checkinterval            = 5 * time.Second
+	reloadcfginterval        = 10 * time.Second
+	checkinterval            = 30 * time.Second
 	freeperc          uint64 = 10
 	//freeperc uint64 = 80
 	delStopAt uint64 = 20
