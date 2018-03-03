@@ -370,6 +370,8 @@ func checkroutine() {
 				openfiles := getopenfile()
 				log.Println("[info]disk free space ", disk, perc, "%, begin delete")
 				dellog(disk, logpaths, openfiles)
+			} else {
+				log.Println("[info]disk free space ", disk, perc, "%, don't need delete")
 			}
 		}
 		cfg.RUnlock()
