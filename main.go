@@ -34,7 +34,8 @@ var(
 
 	reloadcfginterval = 1 * time.Second
 	checkinterval = 5 * time.Second
-	freeperc uint64 = 80
+	freeperc uint64 = 10
+    delStopAt uint64 = 20
     oldfile = 12 * time.Hour
     //oldfile = 12 * time.Second
 
@@ -238,17 +239,31 @@ func dellog(disk string,logpaths []string,openfiles map[string][]string){
             return nil
         })
     }
-    deleteAndCheck(loglist)
+    deleteAndCheck(loglist,disk)
 }
 
-func deleteAndCheck(loglist MyFileList){
+func deleteAndCheck(loglist MyFileList,disk string){
     if len(loglist) == 0{
         log.Println("[WARN]nothing to delete")
         return
     }
     //sort first
     sort.Sort(loglist)
-    log.Println(loglist)
+    //del from begin
+    for len(loglist) > 0{
+        firstlog := loglist[0]
+        loglist = loglist[1:]
+        err := os.Remove(firstlog.name)
+        if err != nil{
+            log.Println("[ERROR]error when delete file:",err)
+        }
+        perc := diskperc(disk)
+        if perc > delStopAt{
+            log.Println("[info]delete done,",disk,perc,"% free")
+            return
+        }
+    }
+    log.Println("[WARN]nothing more to delete")
 }
 
 func diskperc(disk string)uint64{
@@ -287,7 +302,7 @@ func getopenfile()(map[string][]string){
     for _,fdpath := range proclist{
         filepath.Walk(fdpath,func(path string, info os.FileInfo, err error) error{
             if err != nil{
-                log.Println("[ERROR]walk file error",path,err)
+                log.Println("[WARN]walk file error",path,err)
                 return nil
             }
             if fdpath == path{
@@ -298,7 +313,7 @@ func getopenfile()(map[string][]string){
             }
             islink, err := isSymlink(path)
             if err != nil{
-                log.Println("[ERROR]walk file error",path,err)
+                log.Println("[WARN]walk file error",path,err)
                 return nil
             }
             if islink{
