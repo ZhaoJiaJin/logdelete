@@ -364,12 +364,12 @@ func isSymlink(name string)(bool,error){
 func checkroutine(){
 	for{
 		cfg.RLock()
-        //get open file first
-        openfiles := getopenfile()
         //then delete file
 		for disk,logpaths := range cfg.logmap{
 			perc := diskperc(disk)
 			if perc < freeperc{//free percentage
+                //get open file first
+                openfiles := getopenfile()
 				log.Println("[info]disk free space ",disk,perc,"%, begin delete")
 				dellog(disk,logpaths,openfiles)
 			}
