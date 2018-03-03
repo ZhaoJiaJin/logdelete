@@ -179,7 +179,7 @@ func getmountpoint()([]string,error){
 	return ans,nil
 }
 
-func canDelete(logpath string,info os.FileInfo)bool{
+func canDelete(logpath string,info os.FileInfo,pathname string,openfiles map[string][]string)bool{
     //modify time older then 12h
     if time.Now().Sub(getModTime(info)) < oldfile{
         return false
@@ -194,13 +194,20 @@ func canDelete(logpath string,info os.FileInfo)bool{
         }
     }
     //not open by other program
-    //wait to be done
-
-
+    pathopenfiles,present := openfiles[logpath]
+    if !present{//no file in this path is open
+        return true
+    }
+    for _,openf := range pathopenfiles{
+        if openf == pathname{
+            //file open
+            return false
+        }
+    }
     return true
 }
 
-func dellog(disk string,logpaths []string){
+func dellog(disk string,logpaths []string,openfiles map[string][]string){
 	log.Println("[info]clear for",disk)
     var loglist MyFileList
     for _,logpath := range logpaths{
@@ -215,7 +222,7 @@ func dellog(disk string,logpaths []string){
             if info.IsDir(){
                 return filepath.SkipDir
             }
-            if canDelete(logpath,info){
+            if canDelete(logpath,info,path,openfiles){
                 loglist = append(loglist,MyFile{path,getModTime(info)})
             }
             return nil
@@ -326,7 +333,7 @@ func checkroutine(){
 			perc := diskperc(disk)
 			if perc < freeperc{//free percentage
 				log.Println("[info]disk free space ",disk,perc,"%, begin delete")
-				dellog(disk,logpaths)
+				dellog(disk,logpaths,openfiles)
 			}
 		}
 		cfg.RUnlock()
