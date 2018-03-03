@@ -253,9 +253,14 @@ func deleteAndCheck(loglist MyFileList,disk string){
     for len(loglist) > 0{
         firstlog := loglist[0]
         loglist = loglist[1:]
-        err := os.Remove(firstlog.name)
-        if err != nil{
-            log.Println("[ERROR]error when delete file:",err)
+        if debug{
+            log.Println("[info]fake delete file:",firstlog.name)
+        }else{
+            log.Println("[info]delete file:",firstlog.name)
+            err := os.Remove(firstlog.name)
+            if err != nil{
+                log.Println("[ERROR]error when delete file:",err)
+            }
         }
         perc := diskperc(disk)
         if perc > delStopAt{
