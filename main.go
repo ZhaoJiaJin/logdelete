@@ -3,14 +3,15 @@ package main
 import(
 	"os"
 	"log"
-	"syscall"
-    "strconv"
 	"time"
-	"errors"
+    "sort"
 	"flag"
 	"sync"
-	"io/ioutil"
+	"errors"
 	"strings"
+	"syscall"
+    "strconv"
+	"io/ioutil"
     "path/filepath"
 )
 
@@ -35,6 +36,7 @@ var(
 	checkinterval = 5 * time.Second
 	freeperc uint64 = 80
     oldfile = 12 * time.Hour
+    //oldfile = 12 * time.Second
 
 	debug bool
 	cfgfile string
@@ -42,7 +44,15 @@ var(
 	cfg LogCfg
 )
 
-
+func (l MyFileList)Len()int{
+    return len(l)
+}
+func (l MyFileList)Swap(i,j int){
+    l[i],l[j] = l[j],l[i]
+}
+func (l MyFileList)Less(i,j int)bool{
+    return l[i].modTime.Before(l[j].modTime)
+}
 func getAccTime(info os.FileInfo)(time.Time,error){
 	var ret time.Time
 	sysinfo := info.Sys()
@@ -232,7 +242,13 @@ func dellog(disk string,logpaths []string,openfiles map[string][]string){
 }
 
 func deleteAndCheck(loglist MyFileList){
+    if len(loglist) == 0{
+        log.Println("[WARN]nothing to delete")
+        return
+    }
     //sort first
+    sort.Sort(loglist)
+    log.Println(loglist)
 }
 
 func diskperc(disk string)uint64{
