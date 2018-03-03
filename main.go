@@ -4,6 +4,7 @@ import(
 	"os"
 	"log"
 	"syscall"
+    "strconv"
 	"time"
 	"errors"
 	"flag"
@@ -18,6 +19,12 @@ type LogCfg struct{
 	logmap map[string][]string//{disk:path}
 }
 
+type MyFile struct{
+    name string
+    modTime time.Time
+}
+
+type MyFileList []MyFile
 
 var(
 	NoFileSysErr = errors.New("can not get file sys info")
@@ -27,6 +34,7 @@ var(
 	reloadcfginterval = 1 * time.Second
 	checkinterval = 5 * time.Second
 	freeperc uint64 = 80
+    oldfile = 12 * time.Hour
 
 	debug bool
 	cfgfile string
@@ -171,24 +179,53 @@ func getmountpoint()([]string,error){
 	return ans,nil
 }
 
+func canDelete(info os.FileInfo)bool{
+    //modify time older then 12h
+    if time.Now().Sub(getModTime(info)) < oldfile{
+        return false
+    }
+    //access time older then 12h
+    acctime,err := getAccTime(info)
+    if err != nil{
+        log.Println("[ERROR]get file access time err",info.Name(),err)
+    }else{
+        if time.Now().Sub(acctime) < oldfile{
+            return false
+        }
+    }
+    //not open by other program
+    //wait to be done
+
+
+    return true
+}
+
 func dellog(disk string,logpaths []string){
 	log.Println("[info]clear for",disk)
+    var loglist MyFileList
     for _,logpath := range logpaths{
         filepath.Walk(logpath,func(path string, info os.FileInfo, err error) error{
-            if err == nil{
-                if logpath == path{
-                    return nil
-                }
-                if info.IsDir(){
-                    return filepath.SkipDir
-                }
-                log.Println(path,info.Name(),info.IsDir(),"!!!")
-            }else{
+            if err != nil{
                 log.Println("[ERROR]walk file error",path,err)
+                return err
+            }
+            if logpath == path{
+                return nil
+            }
+            if info.IsDir(){
+                return filepath.SkipDir
+            }
+            if canDelete(info){
+                loglist = append(loglist,MyFile{path,getModTime(info)})
             }
             return nil
         })
     }
+    deleteAndCheck(loglist)
+}
+
+func deleteAndCheck(loglist MyFileList){
+    //sort first
 }
 
 func diskperc(disk string)uint64{
@@ -200,9 +237,41 @@ func diskperc(disk string)uint64{
 	return stat.Bfree * 100 /  uint64(stat.Blocks)
 }
 
+func getopenfile()(map[string][]string){
+    procdir := "/proc"
+    proclist := make([]string,0)
+    //get process list
+    filepath.Walk(procdir,func(path string, info os.FileInfo, err error) error{
+        if err != nil{
+            //better panic, in case of deleting wrong file
+            log.Panic("[ERROR]walk file error",path,err)
+            return err
+        }
+        if path == procdir{
+            return nil
+        }
+        _,numerr := strconv.Atoi(info.Name())
+        _,fderr := os.Stat(path+"/fd")
+        if info.IsDir() && numerr == nil && fderr == nil{
+            proclist = append(proclist,path+"/fd")
+        }
+        if info.IsDir(){
+            return filepath.SkipDir
+        }
+        return nil
+    })
+    //build open file map
+    log.Println(proclist)
+    return nil
+}
+
+
 func checkroutine(){
 	for{
 		cfg.RLock()
+        //get open file first
+        _ = getopenfile()
+        //then delete file
 		for disk,logpaths := range cfg.logmap{
 			perc := diskperc(disk)
 			if perc < freeperc{//free percentage
