@@ -35,7 +35,9 @@ var(
 	reloadcfginterval = 1 * time.Second
 	checkinterval = 5 * time.Second
 	freeperc uint64 = 10
+	//freeperc uint64 = 80
     delStopAt uint64 = 20
+    //delStopAt uint64 = 90
     oldfile = 12 * time.Hour
     //oldfile = 12 * time.Second
 
