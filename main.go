@@ -327,7 +327,6 @@ func checkroutine(){
 		cfg.RLock()
         //get open file first
         openfiles := getopenfile()
-        log.Println(openfiles)
         //then delete file
 		for disk,logpaths := range cfg.logmap{
 			perc := diskperc(disk)
