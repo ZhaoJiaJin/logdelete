@@ -287,9 +287,10 @@ func getopenfile()(map[string][]string){
         if path == procdir{
             return nil
         }
-        _,numerr := strconv.Atoi(info.Name())
+        pid,numerr := strconv.Atoi(info.Name())
+        selfpid := os.Getpid()
         _,fderr := os.Stat(path+"/fd")
-        if info.IsDir() && numerr == nil && fderr == nil{
+        if info.IsDir() && numerr == nil && pid != selfpid && fderr == nil{
             proclist = append(proclist,path+"/fd")
         }
         if info.IsDir(){
