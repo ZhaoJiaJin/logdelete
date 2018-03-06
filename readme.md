@@ -35,3 +35,11 @@
 
 1. 配置简单，只需要增加日志路径，不需要关心mtime和正则表达式。
 2. 可以实现在磁盘空间允许情况下保留更多天数的日志，磁盘容量紧张时只优先保留最近12小时日志。
+
+
+## build 办法
+go build -o deletelog main.go
+
+## 运行办法
+./deletelog -c config
+*如果不指定config配置文件，默认使用当前目录的config文件*
