@@ -41,7 +41,7 @@
 go build -o deletelog main.go
 
 ## 运行办法
-./deletelog (-c config) (-d)
+nohup ./deletelog (-c config) (-d) >> dellog 2>&1 &
  * -c 表示指定配置文件
  * -d 开启debug模式（不会删除任何文件），线上启用时不要指定-d
 
